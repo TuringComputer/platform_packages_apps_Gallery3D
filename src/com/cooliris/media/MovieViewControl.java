@@ -55,6 +55,8 @@ public class MovieViewControl implements MediaPlayer.OnErrorListener, MediaPlaye
     private final View mProgressView;
     private final Uri mUri;
     private final ContentResolver mContentResolver;
+    
+    private Integer mBookmark;
 
     Handler mHandler = new Handler();
 
@@ -65,6 +67,15 @@ public class MovieViewControl implements MediaPlayer.OnErrorListener, MediaPlaye
             } else {
                 mHandler.postDelayed(mPlayingChecker, 250);
             }
+        }
+    };
+    
+    Runnable mStarter = new Runnable() {
+        public void run() {
+        	if(mBookmark != null) {
+        		mVideoView.seekTo(mBookmark);
+        	}
+        	mVideoView.start();
         }
     };
 
@@ -88,6 +99,9 @@ public class MovieViewControl implements MediaPlayer.OnErrorListener, MediaPlaye
         mProgressView = rootView.findViewById(Res.id.progress_indicator);
 
         mUri = videoUri;
+        
+        // Invalid Bookmark at first
+        mBookmark = -1;
 
         // For streams that we expect to be slow to start up, show a
         // progress spinner until playback starts.
@@ -110,13 +124,13 @@ public class MovieViewControl implements MediaPlayer.OnErrorListener, MediaPlaye
         i.putExtra(CMDNAME, CMDPAUSE);
         context.sendBroadcast(i);
 
-        final Integer bookmark = getBookmark();
-        if (bookmark != null) {
+        mBookmark = getBookmark();
+        if (mBookmark != null) {
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle(Res.string.resume_playing_title);
             builder
                     .setMessage(String
-                            .format(context.getString(Res.string.resume_playing_message), formatDuration(context, bookmark)));
+                            .format(context.getString(Res.string.resume_playing_message), formatDuration(context, mBookmark)));
             builder.setOnCancelListener(new OnCancelListener() {
                 public void onCancel(DialogInterface dialog) {
                     onCompletion();
@@ -124,18 +138,17 @@ public class MovieViewControl implements MediaPlayer.OnErrorListener, MediaPlaye
             });
             builder.setPositiveButton(Res.string.resume_playing_resume, new OnClickListener() {
                 public void onClick(DialogInterface dialog, int which) {
-                    mVideoView.seekTo(bookmark);
-                    mVideoView.start();
+                    mHandler.postDelayed(mStarter, 250);
                 }
             });
             builder.setNegativeButton(Res.string.resume_playing_restart, new OnClickListener() {
                 public void onClick(DialogInterface dialog, int which) {
-                    mVideoView.start();
+                	mHandler.postDelayed(mStarter, 250);
                 }
             });
             builder.show();
         } else {
-            mVideoView.start();
+        	mHandler.postDelayed(mStarter, 100);
         }
     }
 
